@@ -29,7 +29,6 @@ services:
     ports:
       - "${HAPROXY_EXTERNAL_PORT:-443}:443"
     volumes:
-      - ./haproxy/haproxy.cfg:/etc/haproxy/haproxy.cfg
       - ./haproxy/data/users.csv:/etc/haproxy/data/users.csv
       - certificate:/etc/haproxy/certs:ro
     healthcheck:
