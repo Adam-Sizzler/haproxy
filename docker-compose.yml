@@ -1,0 +1,47 @@
+x-container: &container
+  ulimits:
+    nofile:
+      soft: ${NOFILE_SOFT_LIMIT:-65535}
+      hard: ${NOFILE_HARD_LIMIT:-65535}
+  restart: ${RESTART_POLICY:-unless-stopped}
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:noexec,nosuid,size=50m
+  env_file:
+    - ".env"
+
+x-logging: &logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: ${LOGGING_MAX_SIZE:-5M}
+      max-file: ${LOGGING_COUNT_FILES:-10}
+
+services:
+  haproxy:
+    <<: [*container, *logging]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: local/haproxy-custom:3.2
+    container_name: haproxy
+    environment:
+      HAPROXY_DOMAIN: ${HAPROXY_DOMAIN}
+      HAPROXY_CERT_PATH: ${HAPROXY_CERT_PATH:-/etc/haproxy/certs/${HAPROXY_DOMAIN}.pem}
+    ports:
+      - "${HAPROXY_EXTERNAL_PORT:-443}:443"
+    volumes:
+      - ./haproxy.cfg:/etc/haproxy/templates/haproxy.cfg.template:ro
+      - ./data/users.csv:/etc/haproxy/data/users.csv:ro
+      - certificate:/etc/haproxy/certs:ro
+    healthcheck:
+      test: ["CMD", "pidof", "haproxy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  certificate:
+    external: true
