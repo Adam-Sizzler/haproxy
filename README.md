@@ -16,7 +16,7 @@
 1. Скопировать переменные:
    - `cp .env.example .env`
 2. Указать домен:
-   - `HAPROXY_DOMAIN=your.domain.com`
+   - `DOMAIN_NAME=your.domain.com`
 3. Создать пользователей:
    - `cp data/users.csv.example data/users.csv`
 4. Запустить:
@@ -26,7 +26,7 @@
 
 В `haproxy.cfg` используются переменные:
 
-- `${HAPROXY_DOMAIN}`
+- `${DOMAIN_NAME}`
 - `${HAPROXY_CERT_PATH}`
 
 При старте контейнера шаблон рендерится в реальный `/usr/local/etc/haproxy/haproxy.cfg`.

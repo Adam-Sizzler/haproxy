@@ -21,14 +21,11 @@ x-logging: &logging
 services:
   haproxy:
     <<: [*container, *logging]
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: local/haproxy-custom:3.2
+    image: ghcr.io/adam-sizzler/haproxy:latest
     container_name: haproxy
     environment:
-      HAPROXY_DOMAIN: ${HAPROXY_DOMAIN}
-      HAPROXY_CERT_PATH: ${HAPROXY_CERT_PATH:-/etc/haproxy/certs/${HAPROXY_DOMAIN}.pem}
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      HAPROXY_CERT_PATH: ${HAPROXY_CERT_PATH:-/etc/haproxy/certs/${DOMAIN_NAME}.pem}
     ports:
       - "${HAPROXY_EXTERNAL_PORT:-443}:443"
     volumes:

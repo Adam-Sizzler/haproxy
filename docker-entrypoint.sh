@@ -9,14 +9,14 @@ if [ ! -f "$TEMPLATE_PATH" ]; then
   exit 1
 fi
 
-if [ -z "${HAPROXY_DOMAIN:-}" ]; then
-  echo "HAPROXY_DOMAIN is required" >&2
+if [ -z "${DOMAIN_NAME:-}" ]; then
+  echo "DOMAIN_NAME is required" >&2
   exit 1
 fi
 
-: "${HAPROXY_CERT_PATH:=/etc/haproxy/certs/${HAPROXY_DOMAIN}.pem}"
-export HAPROXY_DOMAIN HAPROXY_CERT_PATH
+: "${HAPROXY_CERT_PATH:=/etc/haproxy/certs/${DOMAIN_NAME}.pem}"
+export DOMAIN_NAME HAPROXY_CERT_PATH
 
-envsubst '${HAPROXY_DOMAIN} ${HAPROXY_CERT_PATH}' < "$TEMPLATE_PATH" > "$OUTPUT_PATH"
+envsubst '${DOMAIN_NAME} ${HAPROXY_CERT_PATH}' < "$TEMPLATE_PATH" > "$OUTPUT_PATH"
 
 exec "$@"
