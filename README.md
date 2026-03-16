@@ -31,16 +31,16 @@
 
 При старте контейнера шаблон рендерится в реальный `/usr/local/etc/haproxy/haproxy.cfg`.
 
-## Автодеплой по релизу
+## Сборка образа по релизу
 
 Workflow: `.github/workflows/deploy-on-release.yml`
 
 Триггер: публикация релиза (`release.published`).
 
-Нужные GitHub Secrets:
+Что делает workflow:
 
-- `DEPLOY_HOST`
-- `DEPLOY_USER`
-- `DEPLOY_SSH_KEY`
-- `DEPLOY_PORT` (опционально)
-- `DEPLOY_PATH` (путь до директории с `docker-compose.yml` на сервере)
+- Собирает Docker-образ из `Dockerfile`
+- Публикует образ в `ghcr.io/<owner>/haproxy`
+- Ставит теги `latest` и тег релиза
+
+Дополнительные SSH/серверные секреты не нужны.
