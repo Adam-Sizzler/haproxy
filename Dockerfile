@@ -3,7 +3,7 @@ FROM haproxy:3.2-alpine
 USER root
 
 COPY ./haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg
-COPY lua/ /etc/haproxy/lua/
+COPY ./haproxy/lua/ /etc/haproxy/lua/
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
