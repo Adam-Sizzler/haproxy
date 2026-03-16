@@ -1,24 +1,32 @@
 #!/bin/sh
 set -e
 
-CONF="/etc/haproxy/haproxy.cfg"
+SOURCE_CONF="/etc/haproxy/haproxy.cfg"
+RENDERED_CONF="/tmp/haproxy.cfg"
 
-# 1. Обработка переменной
-if [ -n "$DOMAIN_NAME" ]; then
-    echo "Updating DOMAIN_NAME to: $DOMAIN_NAME"
-    sed -i "s/\${DOMAIN_NAME}/$DOMAIN_NAME/g" "$CONF"
-else
-    # Если переменной нет, но в файле остался шаблон ${DOMAIN_NAME}, 
-    # лучше заменить его на example.com, чтобы HAProxy не упал при старте.
-    if grep -q '\${DOMAIN_NAME}' "$CONF"; then
-        echo "![WARNING]: DOMAIN_NAME not set, but template found. Using example.com"
-        sed -i "s/\${DOMAIN_NAME}/example.com/g" "$CONF"
+cp "$SOURCE_CONF" "$RENDERED_CONF"
+
+# 1. Обработка переменной DOMAIN_NAME только в рендер-копии.
+if grep -q '\${DOMAIN_NAME}' "$RENDERED_CONF"; then
+    DOMAIN_TO_USE="${DOMAIN_NAME:-example.com}"
+    if [ -n "$DOMAIN_NAME" ]; then
+        echo "Updating DOMAIN_NAME to: $DOMAIN_NAME"
+    else
+        echo "![WARNING]: DOMAIN_NAME not set, template found. Using example.com"
     fi
+
+    # Escape replacement string for sed.
+    ESCAPED_DOMAIN=$(printf '%s' "$DOMAIN_TO_USE" | sed 's/[\/&]/\\&/g')
+    sed -i "s/\${DOMAIN_NAME}/$ESCAPED_DOMAIN/g" "$RENDERED_CONF"
 fi
 
-# 2. Проверка синтаксиса (чтобы контейнер не падал молча)
+# 2. Проверка синтаксиса (чтобы контейнер не падал молча).
 echo "Checking HAProxy configuration..."
-haproxy -c -f "$CONF"
+haproxy -c -f "$RENDERED_CONF"
 
-# 3. Запускаем то, что передано в CMD (стандартный механизм Docker)
+# 3. Запуск: если стартует haproxy, принудительно используем рендер-файл.
+if [ "${1:-}" = "haproxy" ]; then
+    exec haproxy -f "$RENDERED_CONF" -db
+fi
+
 exec "$@"

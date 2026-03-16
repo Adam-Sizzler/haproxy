@@ -12,4 +12,4 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
 USER haproxy
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["haproxy", "-f", "/etc/haproxy/haproxy.cfg", "-db"]
+CMD ["haproxy"]

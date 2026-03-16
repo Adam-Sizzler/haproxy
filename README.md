@@ -27,9 +27,9 @@
 В `haproxy.cfg` используются переменные:
 
 - `${DOMAIN_NAME}`
-- `${HAPROXY_CERT_PATH}`
 
-При старте контейнера шаблон рендерится в реальный `/usr/local/etc/haproxy/haproxy.cfg`.
+При старте контейнера шаблон из `/etc/haproxy/haproxy.cfg` рендерится в `/tmp/haproxy.cfg`,
+после чего HAProxy запускается с этим файлом.
 
 ## Сборка образа по релизу
 
