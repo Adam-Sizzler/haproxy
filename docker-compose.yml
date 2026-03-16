@@ -25,12 +25,12 @@ services:
     container_name: haproxy
     environment:
       DOMAIN_NAME: ${DOMAIN_NAME}
-      HAPROXY_CERT_PATH: ${HAPROXY_CERT_PATH:-/etc/haproxy/certs/${DOMAIN_NAME}.pem}
+      # HAPROXY_CERT_PATH: ${HAPROXY_CERT_PATH:-/etc/haproxy/certs/${DOMAIN_NAME}.pem}
     ports:
       - "${HAPROXY_EXTERNAL_PORT:-443}:443"
     volumes:
-      - ./haproxy.cfg:/etc/haproxy/templates/haproxy.cfg.template:ro
-      - ./data/users.csv:/etc/haproxy/data/users.csv:ro
+      - ./haproxy/haproxy.cfg:/etc/haproxy/haproxy.cfg
+      - ./haproxy/data/users.csv:/etc/haproxy/data/users.csv
       - certificate:/etc/haproxy/certs:ro
     healthcheck:
       test: ["CMD", "pidof", "haproxy"]
