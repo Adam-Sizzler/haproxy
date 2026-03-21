@@ -7,7 +7,6 @@
 Наружу пробрасываются только:
 
 - `haproxy.cfg` (шаблон)
-- `data/users.csv`
 
 `lua`-скрипты встроены в образ (`FROM haproxy:3.2-alpine`).
 
@@ -17,10 +16,12 @@
    - `cp .env.example .env`
 2. Указать домен:
    - `DOMAIN_NAME=your.domain.com`
-3. Создать пользователей:
-   - `cp data/users.csv.example data/users.csv`
-4. Запустить:
+3. Запустить:
    - `docker compose up -d --build`
+
+`users.csv` по умолчанию ожидается в volume `haproxy-data` по пути
+`/app/haproxy/data/users.csv`. Его может заполнять внешний сервис (например, node).
+Пример формата хранится в репозитории: `haproxy/data/users.csv.example`.
 
 ## Домен через env
 

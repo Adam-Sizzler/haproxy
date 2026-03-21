@@ -29,8 +29,8 @@ services:
     ports:
       - "${HAPROXY_EXTERNAL_PORT:-443}:443"
     volumes:
-      - ./haproxy/data/users.csv:/etc/haproxy/data/users.csv
-      - certificate:/etc/haproxy/certs:ro
+      - haproxy-data:/etc/haproxy/data
+      # - certificate:/etc/haproxy/certs:ro
     healthcheck:
       test: ["CMD", "pidof", "haproxy"]
       interval: 10s
@@ -39,5 +39,11 @@ services:
       start_period: 30s
 
 volumes:
-  certificate:
-    external: true
+  haproxy-data:
+    name: haproxy-data
+    driver: local
+    external: false
+  #certificate:
+  #  name: certificate
+  #  driver: local
+  #  external: true
