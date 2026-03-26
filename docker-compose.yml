@@ -35,7 +35,7 @@ services:
     volumes:
       - haproxy-data:/etc/haproxy/data
       - haproxy-socket:/var/run/haproxy
-      # - certificate:/etc/haproxy/certs:ro
+      - certificate:/etc/haproxy/certs
     healthcheck:
       test: ["CMD", "pidof", "haproxy"]
       interval: 10s
