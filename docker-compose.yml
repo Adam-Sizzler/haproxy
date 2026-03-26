@@ -18,9 +18,13 @@ x-logging: &logging
       max-size: ${LOGGING_MAX_SIZE:-5M}
       max-file: ${LOGGING_COUNT_FILES:-10}
 
+x-network: &network
+  networks:
+    - all-net
+
 services:
   haproxy:
-    <<: [*container, *logging]
+    <<: [*container, *logging, *network]
     image: ghcr.io/adam-sizzler/haproxy:latest
     container_name: haproxy
     environment:
@@ -30,6 +34,7 @@ services:
       - "${HAPROXY_EXTERNAL_PORT:-443}:443"
     volumes:
       - haproxy-data:/etc/haproxy/data
+      - haproxy-socket:/var/run/haproxy
       # - certificate:/etc/haproxy/certs:ro
     healthcheck:
       test: ["CMD", "pidof", "haproxy"]
@@ -42,8 +47,13 @@ volumes:
   haproxy-data:
     name: haproxy-data
     driver: local
-    external: false
-  #certificate:
-  #  name: certificate
-  #  driver: local
-  #  external: true
+  haproxy-socket:
+    name: haproxy-socket
+    driver: local
+  certificate:
+    name: certificate
+    driver: local
+
+networks:
+  all-net:
+    driver: bridge
