@@ -4,20 +4,19 @@
 
 ## Что снаружи
 
-Наружу пробрасываются только:
+Наружу пробрасывается шаблон:
 
-- `haproxy.cfg` (шаблон)
+- `haproxy/haproxy.cfg`
 
-`lua`-скрипты встроены в образ (`FROM haproxy:3.2-alpine`).
+`lua`-скрипты встроены в образ (`FROM haproxy:3.2-alpine`), а рабочий конфиг
+в контейнере генерируется при старте.
 
 ## Локальный запуск
 
-1. Скопировать переменные:
-   - `cp .env.example .env`
-2. Указать домен:
+1. Указать домен в .env:
    - `DOMAIN_NAME=your.domain.com`
-3. Запустить:
-   - `docker compose up -d --build`
+2. Запустить:
+   - `docker compose up -d`
 
 `users.csv` по умолчанию ожидается в volume `haproxy-data` по пути
 `/app/haproxy/data/users.csv`. Его может заполнять внешний сервис (например, node).
@@ -29,19 +28,10 @@
 
 - `${DOMAIN_NAME}`
 
-При старте контейнера (если в файле есть `${DOMAIN_NAME}`) шаблон подставляется прямо в
-`/etc/haproxy/haproxy.cfg`, после чего HAProxy запускается с этим системным путем.
+При старте контейнера:
 
-## Сборка образа по релизу
+- шаблон читается из `/app/haproxy.cfg` (обычно bind-mount с хоста, `:ro`)
+- создается runtime-конфиг `/etc/haproxy/haproxy.cfg`
+- в runtime-конфиг подставляется `${DOMAIN_NAME}`
 
-Workflow: `.github/workflows/deploy-on-release.yml`
-
-Триггер: публикация релиза (`release.published`).
-
-Что делает workflow:
-
-- Собирает Docker-образ из `Dockerfile`
-- Публикует образ в `ghcr.io/<owner>/haproxy`
-- Ставит теги `latest` и тег релиза
-
-Дополнительные SSH/серверные секреты не нужны.
+Исходный файл на хосте не изменяется.

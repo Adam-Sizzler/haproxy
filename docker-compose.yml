@@ -27,15 +27,13 @@ services:
     <<: [*container, *logging, *network]
     image: ghcr.io/adam-sizzler/haproxy:latest
     container_name: haproxy
-    environment:
-      DOMAIN_NAME: ${DOMAIN_NAME}
-      # HAPROXY_CERT_PATH: ${HAPROXY_CERT_PATH:-/etc/haproxy/certs/${DOMAIN_NAME}.pem}
     ports:
       - "${HAPROXY_EXTERNAL_PORT:-443}:443"
     volumes:
-      - haproxy-data:/etc/haproxy/data
       - haproxy-socket:/var/run/haproxy
-      - certificate:/etc/haproxy/certs
+      - haproxy-data:/etc/haproxy/data
+      - certificate:/etc/letsencrypt:ro
+      - ./haproxy/haproxy.cfg:/app/haproxy.cfg:ro
     healthcheck:
       test: ["CMD", "pidof", "haproxy"]
       interval: 10s
@@ -44,11 +42,11 @@ services:
       start_period: 30s
 
 volumes:
-  haproxy-data:
-    name: haproxy-data
-    driver: local
   haproxy-socket:
     name: haproxy-socket
+    driver: local
+  haproxy-data:
+    name: haproxy-data
     driver: local
   certificate:
     name: certificate

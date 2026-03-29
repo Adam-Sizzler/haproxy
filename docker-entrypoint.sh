@@ -1,28 +1,35 @@
 #!/bin/sh
-set -e
+set -eu
 
-CONF="/etc/haproxy/haproxy.cfg"
+TEMPLATE_CONF="/app/haproxy.cfg"
+RUNTIME_CONF="/etc/haproxy/haproxy.cfg"
+RUNTIME_DIR="$(dirname "$RUNTIME_CONF")"
+SOCKET_DIR="/var/run/haproxy"
+TMP_CONF="/tmp/haproxy.cfg"
 
-# 1. Обработка переменной DOMAIN_NAME в /etc/haproxy/haproxy.cfg.
-# Не используем sed -i, чтобы не создавать temp-файл в /etc/haproxy.
-if grep -q '\${DOMAIN_NAME}' "$CONF"; then
-    DOMAIN_TO_USE="${DOMAIN_NAME:-example.com}"
-    if [ -n "$DOMAIN_NAME" ]; then
-        echo "Updating DOMAIN_NAME to: $DOMAIN_NAME"
-    else
-        echo "![WARNING]: DOMAIN_NAME not set, template found. Using example.com"
-    fi
+mkdir -p "$RUNTIME_DIR" "$SOCKET_DIR"
 
-    # Escape replacement string for sed и перезаписываем исходный файл.
-    ESCAPED_DOMAIN=$(printf '%s' "$DOMAIN_TO_USE" | sed 's/[\/&]/\\&/g')
-    sed "s/\${DOMAIN_NAME}/$ESCAPED_DOMAIN/g" "$CONF" > /tmp/haproxy.cfg
-    cat /tmp/haproxy.cfg > "$CONF"
-    rm -f /tmp/haproxy.cfg
+if [ ! -f "$TEMPLATE_CONF" ]; then
+    echo "ERROR: HAProxy template config not found: $TEMPLATE_CONF" >&2
+    exit 1
 fi
 
-# 2. Проверка синтаксиса (чтобы контейнер не падал молча).
-echo "Checking HAProxy configuration..."
-haproxy -c -f "$CONF"
+cp "$TEMPLATE_CONF" "$RUNTIME_CONF"
 
-# 3. Стандартный запуск из CMD.
+if grep -q '\${DOMAIN_NAME}' "$RUNTIME_CONF"; then
+    DOMAIN_TO_USE="${DOMAIN_NAME:-example.com}"
+    if [ -n "${DOMAIN_NAME:-}" ]; then
+        echo "Using DOMAIN_NAME=$DOMAIN_NAME"
+    else
+        echo "WARNING: DOMAIN_NAME is empty. Using fallback example.com"
+    fi
+
+    ESCAPED_DOMAIN=$(printf '%s' "$DOMAIN_TO_USE" | sed 's/[\/&]/\\&/g')
+    sed "s/\${DOMAIN_NAME}/$ESCAPED_DOMAIN/g" "$RUNTIME_CONF" > "$TMP_CONF"
+    mv "$TMP_CONF" "$RUNTIME_CONF"
+fi
+
+echo "Checking HAProxy configuration..."
+haproxy -c -f "$RUNTIME_CONF"
+
 exec "$@"
