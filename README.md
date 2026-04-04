@@ -22,6 +22,36 @@
 `/app/haproxy/data/users.csv`. Его может заполнять внешний сервис (например, node).
 Пример формата хранится в репозитории: `haproxy/data/users.csv.example`.
 
+## Runtime reload users.csv (без рестарта контейнера)
+
+HAProxy публикует admin socket:
+
+- `/var/run/haproxy/haproxy.sock`
+
+В Lua-модуле доступны runtime-команды:
+
+- `lua reload users` — перечитать `/etc/haproxy/data/users.csv` в Lua-кэш
+- `lua show users cache [limit]` — показать текущее состояние кэша
+
+Пример вызова:
+
+```bash
+docker exec haproxy sh -lc "printf 'lua reload users\n' | socat - UNIX-CONNECT:/var/run/haproxy/haproxy.sock"
+docker exec haproxy sh -lc "printf 'lua show users cache 20\n' | socat - UNIX-CONNECT:/var/run/haproxy/haproxy.sock"
+```
+
+Пример ответа:
+
+```text
+OK reload users: users=5 vless=2 trojan=3 updated_at=2026-04-04T06:15:39Z reloads=2
+users=5 vless=2 trojan=3 reloads=2 updated_at=2026-04-04T06:15:39Z
+user alice
+user bob
+...
+```
+
+Это позволяет обновлять авторизацию по `users.csv` с минимальной задержкой, без `docker restart` и без сигнала HUP контейнеру.
+
 ## Домен через env
 
 В `haproxy.cfg` используются переменные:
