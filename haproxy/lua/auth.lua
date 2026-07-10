@@ -167,7 +167,7 @@ local function identify_protocol(txn)
     local status, data = pcall(function() return txn.req:dup() end)
 
     if not status or not data then
-        return "http"
+        return
     end
 
     local data_len = #data
@@ -194,8 +194,6 @@ local function identify_protocol(txn)
             return "vless"
         end
     end
-
-    return "http"
 end
 
 do
