@@ -1,32 +1,28 @@
-x-container: &container
+x-common: &common
   ulimits:
     nofile:
-      soft: ${NOFILE_SOFT_LIMIT:-65535}
-      hard: ${NOFILE_HARD_LIMIT:-65535}
-  restart: ${RESTART_POLICY:-unless-stopped}
-  security_opt:
-    - no-new-privileges:true
-  tmpfs:
-    - /tmp:noexec,nosuid,size=50m
-  env_file:
-    - ".env"
-
-x-logging: &logging
-  logging:
-    driver: "json-file"
-    options:
-      max-size: ${LOGGING_MAX_SIZE:-5M}
-      max-file: ${LOGGING_COUNT_FILES:-10}
-
-x-network: &network
+      soft: 1048576
+      hard: 1048576
+  restart: always
   networks:
     - all-net
 
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: 5
+
+x-env: &env
+  env_file: .env
+
 services:
   haproxy:
-    <<: [*container, *logging, *network]
+    <<: [*common, *logging, *env]
     image: ghcr.io/adam-sizzler/haproxy:latest
     container_name: haproxy
+    hostname: haproxy
     ports:
       - "${HAPROXY_EXTERNAL_PORT:-443}:443"
     volumes:
@@ -41,17 +37,22 @@ services:
       retries: 5
       start_period: 30s
 
+networks:
+  all-net:
+    name: all-net
+    driver: bridge
+    external: false
+
 volumes:
   haproxy-socket:
     name: haproxy-socket
     driver: local
+    external: false
   haproxy-data:
     name: haproxy-data
     driver: local
+    external: false
   certificate:
     name: certificate
     driver: local
-
-networks:
-  all-net:
-    driver: bridge
+    external: false
