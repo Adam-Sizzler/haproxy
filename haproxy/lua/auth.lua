@@ -7,20 +7,30 @@ local PATH_USERS = "/etc/haproxy/data/users.csv"
 local TROJAN_MIN_LEN = 66
 local TROJAN_HASH_LEN = 56
 local VLESS_MIN_LEN = 17
+-- AnyTLS auth packet: sha256(password) [32 raw bytes] + padding0 length (uint16 BE) [2 bytes] + padding0.
+-- Мы читаем только первые 32 байта (сам хэш), поэтому 32 — это и необходимый,
+-- и достаточный порог. Ставить его больше (например, 64, под дефолтный padding0=30)
+-- нельзя: если сервер/клиент используют padding_scheme с paddingом короче дефолта
+-- (или cmdUpdatePaddingScheme его уменьшит), пакет легитимного клиента окажется
+-- короче завышенного порога, и мы ошибочно не распознаем anytls (false negative).
+local ANYTLS_HASH_LEN = 32
 local MUX_PATTERN = "sp%.mux"
 local MUX_OFFSET = 59
 local SHOW_USERS_MAX_DEFAULT = 200
 
 local users_db = {
     vless = {},
-    trojan = {}
+    trojan = {},
+    anytls = {}
 }
+
 local users_cache_meta = {
     reload_count = 0,
     last_reload_epoch = 0,
     last_error = "",
     vless_count = 0,
     trojan_count = 0,
+    anytls_count = 0,
     usernames = {}
 }
 
@@ -38,6 +48,9 @@ local function build_usernames(db)
         dedup[username] = true
     end
     for _, username in pairs(db.trojan) do
+        dedup[username] = true
+    end
+    for _, username in pairs(db.anytls) do
         dedup[username] = true
     end
 
@@ -65,6 +78,7 @@ local function reload_users_cache()
     users_cache_meta.last_error = ""
     users_cache_meta.vless_count = table_count(loaded.vless)
     users_cache_meta.trojan_count = table_count(loaded.trojan)
+    users_cache_meta.anytls_count = table_count(loaded.anytls)
     users_cache_meta.usernames = build_usernames(loaded)
 end
 
@@ -107,10 +121,11 @@ local function cli_reload_users(applet)
     end
 
     applet:send(string.format(
-        "OK reload users: users=%d vless=%d trojan=%d updated_at=%s reloads=%d\n",
+        "OK reload users: users=%d vless=%d trojan=%d anytls=%d updated_at=%s reloads=%d\n",
         #users_cache_meta.usernames,
         users_cache_meta.vless_count,
         users_cache_meta.trojan_count,
+        users_cache_meta.anytls_count,
         format_epoch(users_cache_meta.last_reload_epoch),
         users_cache_meta.reload_count
     ))
@@ -122,10 +137,11 @@ local function cli_show_users_cache(applet, arg1, arg2, arg3, arg4)
     local shown = math.min(limit, total)
 
     applet:send(string.format(
-        "users=%d vless=%d trojan=%d reloads=%d updated_at=%s\n",
+        "users=%d vless=%d trojan=%d anytls=%d reloads=%d updated_at=%s\n",
         total,
         users_cache_meta.vless_count,
         users_cache_meta.trojan_count,
+        users_cache_meta.anytls_count,
         users_cache_meta.reload_count,
         format_epoch(users_cache_meta.last_reload_epoch)
     ))
@@ -192,6 +208,18 @@ local function identify_protocol(txn)
         if user then
             txn:Info(string.format("VLESS login: %s; ip: %s", user, txn.sf:src()))
             return "vless"
+        end
+    end
+
+    if data_len >= ANYTLS_HASH_LEN then
+        local raw_hash = data:sub(1, ANYTLS_HASH_LEN)
+        -- Оптимизация: принудительно нижний регистр для точного совпадения с базой
+        local hash_hex = tohex(raw_hash):lower()
+        local user = users_db.anytls[hash_hex]
+
+        if user then
+            txn:Info(string.format("AnyTLS login: %s; ip: %s", user, txn.sf:src()))
+            return "anytls"
         end
     end
 end

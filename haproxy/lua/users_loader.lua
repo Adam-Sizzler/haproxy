@@ -7,7 +7,8 @@ local CSV_PATTERN = "^([^,]+),([^,]+),(.+)$"
 function M.load_users_file(path)
     local users = {
         vless = {},   -- map: clean_uuid (32 chars) -> username
-        trojan = {}   -- map: sha224 (56 chars) -> username
+        trojan = {},  -- map: sha224 (56 chars) -> username
+        anytls = {}   -- map: sha256 hex (64 chars) -> username
     }
 
     local f = io.open(path, "r")
@@ -18,21 +19,25 @@ function M.load_users_file(path)
         return users
     end
 
-    -- BEST PRACTICE: Читаем файл построчно, чтобы не грузить RAM
+-- BEST PRACTICE: Читаем файл построчно, чтобы не грузить RAM
     for line in f:lines() do
         -- Пропускаем пустые строки
         if line ~= "" then
             local enabled, username, cred = line:match(CSV_PATTERN)
-            
+         
             -- Используем строгое сравнение с "1"
             if enabled == "1" and username and cred then
                 -- Эффективный trim (убираем пробелы по краям)
                 cred = cred:match("^%s*(.-)%s*$")
-                
+  
                 -- Быстрая проверка длины без создания лишних переменных
                 local len = #cred
                 
-                if len == 56 then
+                if len == 64 then
+                    -- SHA256 hex (AnyTLS)
+                    users.anytls[cred:lower()] = username
+
+                elseif len == 56 then
                     -- SHA224 (Trojan)
                     users.trojan[cred] = username
 
