@@ -1,14 +1,13 @@
 local M = {}
 
--- Оптимизация: предкомпиляция паттерна поиска (микро-оптимизация)
--- Формат: enabled(не запятая), username(не запятая), credential(все остальное)
-local CSV_PATTERN = "^([^,]+),([^,]+),(.+)$"
+local CSV_PATTERN = "^([^,]+),(.+)$"
 
 function M.load_users_file(path)
     local users = {
         vless = {},   -- map: clean_uuid (32 chars) -> username
         trojan = {},  -- map: sha224 (56 chars) -> username
-        anytls = {}   -- map: sha256 hex (64 chars) -> username
+        anytls = {},  -- map: sha256 hex (64 chars) -> username
+        naive = {}    -- map: base64_token -> username
     }
 
     local f = io.open(path, "r")
@@ -19,38 +18,42 @@ function M.load_users_file(path)
         return users
     end
 
--- BEST PRACTICE: Читаем файл построчно, чтобы не грузить RAM
     for line in f:lines() do
         -- Пропускаем пустые строки
         if line ~= "" then
-            local enabled, username, cred = line:match(CSV_PATTERN)
-         
-            -- Используем строгое сравнение с "1"
-            if enabled == "1" and username and cred then
-                -- Эффективный trim (убираем пробелы по краям)
+            local username, cred = line:match(CSV_PATTERN)
+
+            if username and cred then
+                username = username:match("^%s*(.-)%s*$")
                 cred = cred:match("^%s*(.-)%s*$")
-  
-                -- Быстрая проверка длины без создания лишних переменных
-                local len = #cred
-                
-                if len == 64 then
-                    -- SHA256 hex (AnyTLS)
-                    users.anytls[cred:lower()] = username
 
-                elseif len == 56 then
-                    -- SHA224 (Trojan)
-                    users.trojan[cred] = username
+                -- Проверяем NaiveProxy токен (basic:<token> или Basic <token>)
+                local naive_token = cred:match("^[Bb][Aa][Ss][Ii][Cc]:%s*(.+)$")
+                                 or cred:match("^[Bb][Aa][Ss][Ii][Cc]%s+(.+)$")
 
-                elseif len == 32 then
-                    -- UUID (VLESS) - убираем дефисы только если длина похожа на UUID с дефисами (36) или без (32)
-                    -- Но в твоем коде логика была на 32. Если в файле UUID без дефисов:
-                    users.vless[cred] = username
-                    
-                elseif len == 36 then
-                     -- Если в файле UUID с дефисами (стандарт), убираем их "на лету"
-                    local clean = cred:gsub("-", "")
-                    if #clean == 32 then
-                        users.vless[clean] = username
+                if naive_token then
+                    naive_token = naive_token:match("^%s*(.-)%s*$")
+                    if #naive_token > 0 then
+                        users.naive[naive_token] = username
+                    end
+                else
+                    local len = #cred
+                    if len == 64 then
+                        -- SHA256 hex (AnyTLS)
+                        users.anytls[cred] = username
+                    elseif len == 56 then
+                        -- SHA224 (Trojan)
+                        users.trojan[cred] = username
+                    elseif len == 32 then
+                        -- UUID (VLESS) - убираем дефисы только если длина похожа на UUID с дефисами (36) или без (32)
+                        -- Но в твоем коде логика была на 32. Если в файле UUID без дефисов:
+                        users.vless[cred] = username
+                    elseif len == 36 then
+                        -- Если в файле UUID с дефисами (стандарт), убираем их "на лету"
+                        local clean = cred:gsub("-", "")
+                        if #clean == 32 then
+                            users.vless[clean] = username
+                        end
                     end
                 end
             end

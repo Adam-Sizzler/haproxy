@@ -29,6 +29,15 @@ if grep -q '\${DOMAIN_NAME}' "$RUNTIME_CONF"; then
     mv "$TMP_CONF" "$RUNTIME_CONF"
 fi
 
+# Fallback if certificate is placed directly at /etc/letsencrypt/haproxy.pem
+if [ -f "/etc/letsencrypt/haproxy.pem" ]; then
+    CERT_IN_CFG=$(grep -o '/etc/letsencrypt/[^ ]*\.pem' "$RUNTIME_CONF" | head -n 1 || true)
+    if [ -n "$CERT_IN_CFG" ] && [ ! -f "$CERT_IN_CFG" ]; then
+        echo "Certificate $CERT_IN_CFG not found, using existing /etc/letsencrypt/haproxy.pem"
+        sed -i "s|$CERT_IN_CFG|/etc/letsencrypt/haproxy.pem|g" "$RUNTIME_CONF"
+    fi
+fi
+
 echo "Checking HAProxy configuration..."
 haproxy -c -f "$RUNTIME_CONF"
 

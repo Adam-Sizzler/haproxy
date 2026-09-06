@@ -21,7 +21,8 @@ local SHOW_USERS_MAX_DEFAULT = 200
 local users_db = {
     vless = {},
     trojan = {},
-    anytls = {}
+    anytls = {},
+    naive = {}
 }
 
 local users_cache_meta = {
@@ -31,11 +32,13 @@ local users_cache_meta = {
     vless_count = 0,
     trojan_count = 0,
     anytls_count = 0,
+    naive_count = 0,
     usernames = {}
 }
 
 local function table_count(t)
     local n = 0
+    if not t then return 0 end
     for _ in pairs(t) do
         n = n + 1
     end
@@ -44,13 +47,16 @@ end
 
 local function build_usernames(db)
     local dedup = {}
-    for _, username in pairs(db.vless) do
+    for _, username in pairs(db.vless or {}) do
         dedup[username] = true
     end
-    for _, username in pairs(db.trojan) do
+    for _, username in pairs(db.trojan or {}) do
         dedup[username] = true
     end
-    for _, username in pairs(db.anytls) do
+    for _, username in pairs(db.anytls or {}) do
+        dedup[username] = true
+    end
+    for _, username in pairs(db.naive or {}) do
         dedup[username] = true
     end
 
@@ -79,6 +85,7 @@ local function reload_users_cache()
     users_cache_meta.vless_count = table_count(loaded.vless)
     users_cache_meta.trojan_count = table_count(loaded.trojan)
     users_cache_meta.anytls_count = table_count(loaded.anytls)
+    users_cache_meta.naive_count = table_count(loaded.naive)
     users_cache_meta.usernames = build_usernames(loaded)
 end
 
@@ -121,11 +128,12 @@ local function cli_reload_users(applet)
     end
 
     applet:send(string.format(
-        "OK reload users: users=%d vless=%d trojan=%d anytls=%d updated_at=%s reloads=%d\n",
+        "OK reload users: users=%d vless=%d trojan=%d anytls=%d naive=%d updated_at=%s reloads=%d\n",
         #users_cache_meta.usernames,
         users_cache_meta.vless_count,
         users_cache_meta.trojan_count,
         users_cache_meta.anytls_count,
+        users_cache_meta.naive_count,
         format_epoch(users_cache_meta.last_reload_epoch),
         users_cache_meta.reload_count
     ))
@@ -137,11 +145,12 @@ local function cli_show_users_cache(applet, arg1, arg2, arg3, arg4)
     local shown = math.min(limit, total)
 
     applet:send(string.format(
-        "users=%d vless=%d trojan=%d anytls=%d reloads=%d updated_at=%s\n",
+        "users=%d vless=%d trojan=%d anytls=%d naive=%d reloads=%d updated_at=%s\n",
         total,
         users_cache_meta.vless_count,
         users_cache_meta.trojan_count,
         users_cache_meta.anytls_count,
+        users_cache_meta.naive_count,
         users_cache_meta.reload_count,
         format_epoch(users_cache_meta.last_reload_epoch)
     ))
@@ -224,6 +233,28 @@ local function identify_protocol(txn)
     end
 end
 
+-- Семпл-фетч для HTTP-уровня (L7): проверка заголовка Proxy-Authorization для NaiveProxy
+local function auth_naive(txn)
+    local auth_header = txn.f:req_hdr("Proxy-Authorization")
+    if not auth_header then
+        return false
+    end
+
+    local token = auth_header:match("^[Bb][Aa][Ss][Ii][Cc]%s+(.+)$")
+    if not token then
+        return false
+    end
+    token = token:match("^%s*(.-)%s*$")
+
+    local user = users_db.naive[token]
+    if user then
+        txn:Info(string.format("NaiveProxy login: %s; ip: %s", user, txn.sf:src()))
+        return true
+    end
+
+    return false
+end
+
 do
     local ok, err = safe_reload_users_cache()
     if not ok and core and core.Warning then
@@ -232,5 +263,7 @@ do
 end
 
 core.register_fetches("identify_protocol", identify_protocol)
+core.register_fetches("auth_naive", auth_naive)
 core.register_cli({"lua", "reload", "users"}, "lua reload users", cli_reload_users)
 core.register_cli({"lua", "show", "users", "cache"}, "lua show users cache [limit]", cli_show_users_cache)
+
